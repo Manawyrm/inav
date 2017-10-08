@@ -49,7 +49,7 @@ typedef struct gyroDev_s {
     sensorGyroInterruptStatusFuncPtr intStatusFn;
     sensorGyroUpdateFuncPtr updateFn;
     extiCallbackRec_t exti;
-    busDevice_t bus;
+    busDevice_t * dev;
     float scale;                                        // scalefactor
     int16_t gyroADCRaw[XYZ_AXIS_COUNT];
     int16_t gyroZero[XYZ_AXIS_COUNT];
@@ -58,19 +58,15 @@ typedef struct gyroDev_s {
     uint8_t mpuDividerDrops;
     volatile bool dataReady;
     sensor_align_e gyroAlign;
-    mpuDetectionResult_t mpuDetectionResult;
-    const extiConfig_t *mpuIntExtiConfig;
     mpuConfiguration_t mpuConfiguration;
 } gyroDev_t;
 
 typedef struct accDev_s {
     sensorAccInitFuncPtr initFn;                        // initialize function
     sensorAccReadFuncPtr readFn;                        // read 3 axis data function
-    busDevice_t bus;
+    busDevice_t * dev;
     uint16_t acc_1G;
     int16_t ADCRaw[XYZ_AXIS_COUNT];
     char revisionCode;                                  // a revision code for the sensor, if known
     sensor_align_e accAlign;
-    mpuDetectionResult_t mpuDetectionResult;
-    mpuConfiguration_t mpuConfiguration;
 } accDev_t;

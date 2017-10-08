@@ -258,8 +258,6 @@ bool compassDetect(magDev_t *dev, magSensor_e magHardwareToUse)
 
 bool compassInit(void)
 {
-    // copy over SPI bus settings for AK8963 compass
-    mag.dev.bus = *gyroSensorBus();
     if (!compassDetect(&mag.dev, compassConfig()->mag_hardware)) {
         return false;
     }

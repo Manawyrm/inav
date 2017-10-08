@@ -19,8 +19,11 @@
 
 #include <platform.h>
 #include "drivers/io.h"
+#include "drivers/bus.h"
 #include "drivers/pwm_mapping.h"
 #include "drivers/timer.h"
+
+BUSDEV_REGISTER_SPI(busdev_mpu6000_spi, DEVHW_MPU6000,      BUS_SPI1,    MPU6000_CS_PIN,    MPU_INT_EXTI);
 
 const timerHardware_t timerHardware[USABLE_TIMER_CHANNEL_COUNT] = {
     { TIM3,  IO_TAG(PB0),  TIM_Channel_3, 1, IOCFG_AF_PP_PD, GPIO_AF_TIM3,  TIM_USE_MC_MOTOR | TIM_USE_FW_MOTOR }, // S1_OUT

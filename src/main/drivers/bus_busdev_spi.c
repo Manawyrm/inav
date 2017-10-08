@@ -20,17 +20,26 @@
 #include <string.h>
 
 #include <platform.h>
+#include <build/debug.h>
 
 #if defined(USE_SPI)
 
 #include "drivers/io.h"
 #include "drivers/bus.h"
 #include "drivers/bus_spi.h"
+#include "drivers/time.h"
+
+void spiBbusSetSpeed(const busDevice_t * dev, busSpeed_e speed)
+{
+    const SPIClockSpeed_e spiClock[] = { SPI_CLOCK_INITIALIZATON, SPI_CLOCK_SLOW, SPI_CLOCK_STANDARD, SPI_CLOCK_FAST, SPI_CLOCK_ULTRAFAST };
+    SPI_TypeDef * instance = spiInstanceByDevice(dev->busdev.spi.spiBus);
+    spiSetSpeed(instance, spiClock[speed]);
+}
 
 bool spiBusWriteRegister(const busDevice_t * dev, uint8_t reg, uint8_t data)
 {
     SPI_TypeDef * instance = spiInstanceByDevice(dev->busdev.spi.spiBus);
-
+    
     IOLo(dev->busdev.spi.csnPin);
     spiTransferByte(instance, reg);
     spiTransferByte(instance, data);
@@ -44,8 +53,8 @@ bool spiBusReadBuffer(const busDevice_t * dev, uint8_t reg, uint8_t * data, uint
     SPI_TypeDef * instance = spiInstanceByDevice(dev->busdev.spi.spiBus);
 
     IOLo(dev->busdev.spi.csnPin);
-    spiTransferByte(instance, reg);
-    spiTransfer(instance, NULL, data, length);
+    spiTransferByte(instance, reg | 0x80);
+    spiTransfer(instance, data, NULL, length);
     IOHi(dev->busdev.spi.csnPin);
 
     return true;
@@ -56,8 +65,8 @@ bool spiBusReadRegister(const busDevice_t * dev, uint8_t reg, uint8_t * data)
     SPI_TypeDef * instance = spiInstanceByDevice(dev->busdev.spi.spiBus);
 
     IOLo(dev->busdev.spi.csnPin);
-    spiTransferByte(instance, reg);
-    spiTransfer(instance, NULL, data, 1);
+    spiTransferByte(instance, reg | 0x80);
+    spiTransfer(instance, data, NULL, 1);
     IOHi(dev->busdev.spi.csnPin);
 
     return true;

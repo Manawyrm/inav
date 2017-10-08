@@ -32,6 +32,8 @@
 #include "config/parameter_group_ids.h"
 
 #include "drivers/accgyro/accgyro.h"
+#include "drivers/accgyro/accgyro_bus_mpu6000.h"
+
 #include "drivers/accgyro/accgyro_adxl345.h"
 #include "drivers/accgyro/accgyro_bma280.h"
 #include "drivers/accgyro/accgyro_fake.h"
@@ -43,7 +45,6 @@
 #include "drivers/accgyro/accgyro_mpu3050.h"
 #include "drivers/accgyro/accgyro_mpu6050.h"
 #include "drivers/accgyro/accgyro_mpu6500.h"
-#include "drivers/accgyro/accgyro_spi_mpu6000.h"
 #include "drivers/accgyro/accgyro_spi_mpu6500.h"
 #include "drivers/accgyro/accgyro_spi_mpu9250.h"
 #include "drivers/logging.h"
@@ -208,7 +209,7 @@ static bool accDetect(accDev_t *dev, accelerationSensor_e accHardwareToUse)
 
 #ifdef USE_ACC_SPI_MPU6000
     case ACC_MPU6000:
-        if (mpu6000SpiAccDetect(dev)) {
+        if (mpu6000AccDetect(dev)) {
 #ifdef ACC_MPU6000_ALIGN
             dev->accAlign = ACC_MPU6000_ALIGN;
 #endif
@@ -291,17 +292,15 @@ static bool accDetect(accDev_t *dev, accelerationSensor_e accHardwareToUse)
 bool accInit(uint32_t targetLooptime)
 {
     memset(&acc, 0, sizeof(acc));
-    // copy over the common gyro mpu settings
-    acc.dev.bus = *gyroSensorBus();
-    acc.dev.mpuConfiguration = *gyroMpuConfiguration();
-    acc.dev.mpuDetectionResult = *gyroMpuDetectionResult();
     if (!accDetect(&acc.dev, accelerometerConfig()->acc_hardware)) {
         return false;
     }
+
     acc.dev.acc_1G = 256; // set default
     acc.dev.initFn(&acc.dev);
     acc.accTargetLooptime = targetLooptime;
     accInitFilters();
+
     if (accelerometerConfig()->acc_align != ALIGN_DEFAULT) {
         acc.dev.accAlign = accelerometerConfig()->acc_align;
     }

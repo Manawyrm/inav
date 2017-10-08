@@ -34,6 +34,8 @@
 #include "config/parameter_group_ids.h"
 
 #include "drivers/accgyro/accgyro.h"
+#include "drivers/accgyro/accgyro_bus_mpu6000.h"
+
 #include "drivers/accgyro/accgyro_adxl345.h"
 #include "drivers/accgyro/accgyro_bma280.h"
 #include "drivers/accgyro/accgyro_fake.h"
@@ -45,7 +47,6 @@
 #include "drivers/accgyro/accgyro_mpu6500.h"
 #include "drivers/accgyro/accgyro_l3gd20.h"
 #include "drivers/accgyro/accgyro_lsm303dlhc.h"
-#include "drivers/accgyro/accgyro_spi_mpu6000.h"
 #include "drivers/accgyro/accgyro_spi_mpu6500.h"
 #include "drivers/accgyro/accgyro_spi_mpu9250.h"
 #include "drivers/gyro_sync.h"
@@ -104,7 +105,6 @@ PG_RESET_TEMPLATE(gyroConfig_t, gyroConfig,
     .looptime = 2000,
     .gyroSync = 0,
     .gyroSyncDenominator = 2,
-    .gyro_to_use = 0,
     .gyro_soft_notch_hz_1 = 0,
     .gyro_soft_notch_cutoff_1 = 1,
     .gyro_soft_notch_hz_2 = 0,
@@ -114,41 +114,6 @@ PG_RESET_TEMPLATE(gyroConfig_t, gyroConfig,
 #if defined(USE_GYRO_MPU3050) || defined(USE_GYRO_SPI_MPU6000) || defined(USE_ACC_MPU6050) || defined(USE_GYRO_MPU6050) || defined(USE_GYRO_MPU6500) || defined(USE_GYRO_SPI_MPU6500) || defined(USE_GYRO_SPI_MPU9250)
 #define USE_GYRO_MPU
 #endif
-
-static const extiConfig_t *selectMPUIntExtiConfig(void)
-{
-#ifdef USE_GYRO_MPU
-#if defined(MPU_INT_EXTI)
-    static const extiConfig_t mpuIntExtiConfig = { .tag = IO_TAG(MPU_INT_EXTI) };
-    return &mpuIntExtiConfig;
-#elif defined(USE_DUAL_GYRO)
-    static extiConfig_t mpuIntExtiConfig;
-    mpuIntExtiConfig.tag = gyroConfig()->gyro_to_use == 0  ? IO_TAG(GYRO_0_INT_EXTI) : IO_TAG(GYRO_1_INT_EXTI);
-    return &mpuIntExtiConfig;
-#elif defined(USE_HARDWARE_REVISION_DETECTION)
-    return selectMPUIntExtiConfigByHardwareRevision();
-#else
-    return NULL;
-#endif // MPU_INT_EXTI
-    return NULL;
-#else
-    return NULL;
-#endif
-}
-
-const busDevice_t *gyroSensorBus(void)
-{
-    return &gyroDev0.bus;
-}
-
-const mpuConfiguration_t *gyroMpuConfiguration(void)
-{
-    return &gyroDev0.mpuConfiguration;
-}
-const mpuDetectionResult_t *gyroMpuDetectionResult(void)
-{
-    return &gyroDev0.mpuDetectionResult;
-}
 
 STATIC_UNIT_TESTED gyroSensor_e gyroDetect(gyroDev_t *dev, gyroSensor_e gyroHardware)
 {
@@ -208,7 +173,7 @@ STATIC_UNIT_TESTED gyroSensor_e gyroDetect(gyroDev_t *dev, gyroSensor_e gyroHard
 
 #ifdef USE_GYRO_SPI_MPU6000
     case GYRO_MPU6000:
-        if (mpu6000SpiGyroDetect(dev)) {
+        if (mpu6000GyroDetect(dev)) {
             gyroHardware = GYRO_MPU6000;
 #ifdef GYRO_MPU6000_ALIGN
             dev->gyroAlign = GYRO_MPU6000_ALIGN;
@@ -272,21 +237,11 @@ STATIC_UNIT_TESTED gyroSensor_e gyroDetect(gyroDev_t *dev, gyroSensor_e gyroHard
 bool gyroInit(void)
 {
     memset(&gyro, 0, sizeof(gyro));
-    const extiConfig_t *extiConfig = selectMPUIntExtiConfig();
-#ifdef USE_GYRO_MPU
-#ifdef USE_DUAL_GYRO
-    // set cnsPin using GYRO_n_CS_PIN defined in target.h
-    gyroDev0.bus.busdev.spi.csnPin = gyroConfig()->gyro_to_use == 0 ? IOGetByTag(IO_TAG(GYRO_0_CS_PIN)) : IOGetByTag(IO_TAG(GYRO_1_CS_PIN));
-#else
-    gyroDev0.bus.busdev.spi.csnPin = IO_NONE; // set cnsPin to IO_NONE so mpuDetect will set it according to value defined in target.h
-#endif // USE_DUAL_GYRO
-    mpuDetect(&gyroDev0);
-    mpuResetFn = gyroDev0.mpuConfiguration.resetFn;
-#endif
-    gyroDev0.mpuIntExtiConfig =  extiConfig;
+
     if (gyroDetect(&gyroDev0, GYRO_AUTODETECT) == GYRO_NONE) {
         return false;
     }
+
     // After refactoring this function is always called after gyro sampling rate is known, so
     // no additional condition is required
     // Set gyro sample rate before driver initialisation
