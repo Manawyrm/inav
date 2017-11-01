@@ -32,8 +32,6 @@
 
 #define BUSDEV_MAX_DEVICES 8
 
-static busDevice_t busDevPool[BUSDEV_MAX_DEVICES];
-
 static void busDevPreInit_SPI(const busDeviceDescriptor_t * descriptor)
 {
     // Pre-initialize SPI device chip-select line to input with weak pull-up
@@ -44,23 +42,26 @@ static void busDevPreInit_SPI(const busDeviceDescriptor_t * descriptor)
     }
 }
 
+static void busDevPreInit(const busDeviceDescriptor_t * descriptor)
+{
+    switch (descriptor->busType) {
+        case BUSTYPE_NONE:
+            break;
+
+        case BUSTYPE_I2C:
+            break;
+
+        case BUSTYPE_SPI:
+            busDevPreInit_SPI(descriptor);
+            break;
+    }
+}
+
 void busInit(void)
 {
-    memset(&busDevPool, 0, sizeof(busDevPool));
-
     /* Pre-initialize bus devices */
     for (const busDeviceDescriptor_t * descriptor = __busdev_registry_start; (descriptor) < __busdev_registry_end; descriptor++) {
-        switch (descriptor->busType) {
-            case BUSTYPE_NONE:
-                break;
-
-            case BUSTYPE_I2C:
-                break;
-
-            case BUSTYPE_SPI:
-                busDevPreInit_SPI(descriptor);
-                break;
-        }
+        busDevPreInit(descriptor);
     }
 }
 
@@ -89,56 +90,10 @@ static bool busDevInit_SPI(busDevice_t * dev, const busDeviceDescriptor_t * desc
     return false;
 }
 
-static busDevice_t * findDeviceInPool(const busDeviceDescriptor_t * descriptor)
-{
-    // Check if we already have a device in the pool
-    for (int i = 0; i < BUSDEV_MAX_DEVICES; i++) {
-        if (busDevPool[i].descriptor == descriptor) {
-            return &busDevPool[i];
-        }
-    }
-
-    return NULL;
-}
-
-static busDevice_t * allocateDeviceInPool(const busDeviceDescriptor_t * descriptor)
-{
-    // If we have device already allocated - use allocated
-    busDevice_t * dev = findDeviceInPool(descriptor);
-    if (dev) {
-        return dev;
-    }
-
-    // Nope, allocate a new one
-    for (int i = 0; i < BUSDEV_MAX_DEVICES; i++) {
-        if (busDevPool[i].descriptor == NULL) {
-            memset(&busDevPool[i], 0, sizeof(busDevice_t));
-            busDevPool[i].descriptor = descriptor;
-            busDevPool[i].busType = descriptor->busType;
-            return &busDevPool[i];
-        }
-    }
-
-    return NULL;
-}
-
 void busDeviceDeInit(busDevice_t * dev)
 {
-    // Make sure device is in pre-init state
-    switch (dev->descriptor->busType) {
-        case BUSTYPE_NONE:
-            break;
-
-        case BUSTYPE_I2C:
-            break;
-
-        case BUSTYPE_SPI:
-            busDevPreInit_SPI(dev->descriptor);
-            break;
-    }
-
-    // Free the pool entry
-    dev->descriptor = NULL;
+    busDevPreInit(dev->descriptorPtr);
+    dev->descriptorPtr = NULL;
     dev->busType = BUSTYPE_NONE;
 }
 
@@ -146,8 +101,12 @@ busDevice_t * busDeviceInit(busType_e bus, devHardwareType_e hw, resourceOwner_e
 {
     for (const busDeviceDescriptor_t * descriptor = __busdev_registry_start; (descriptor) < __busdev_registry_end; descriptor++) {
         if (hw == descriptor->devHwType && (bus == descriptor->busType || bus == BUSTYPE_ANY)) {
-            // We have a candidate - find a device in pool or allocate a new one
-            busDevice_t * dev = allocateDeviceInPool(descriptor);
+            // We have a candidate - initialize device context memory
+            busDevice_t * dev = descriptor->devicePtr;
+            memset(dev, 0, sizeof(busDevice_t));
+
+            dev->descriptorPtr = descriptor;
+            dev->busType = descriptor->busType;
 
             if (dev) {
                 switch (descriptor->busType) {
@@ -180,11 +139,15 @@ busDevice_t * busDeviceInit(busType_e bus, devHardwareType_e hw, resourceOwner_e
     return NULL;
 }
 
-busDevice_t * busDeviceOpen(busType_e bus, devHardwareType_e hw, resourceOwner_e owner)
+busDevice_t * busDeviceOpen(busType_e bus, devHardwareType_e hw)
 {
     for (const busDeviceDescriptor_t * descriptor = __busdev_registry_start; (descriptor) < __busdev_registry_end; descriptor++) {
         if (hw == descriptor->devHwType && (bus == descriptor->busType || bus == BUSTYPE_ANY)) {
-            return findDeviceInPool(descriptor);
+            // Found a hardware descriptor. Now check if device context is valid
+            busDevice_t * dev = descriptor->devicePtr;
+            if (dev->busType == descriptor->busType && dev->descriptorPtr == descriptor) {
+                return dev;
+            }
         }
     }
 
@@ -204,6 +167,16 @@ void busSetSpeed(const busDevice_t * dev, busSpeed_e speed)
             // Do nothing for I2C
             break;
     }
+}
+
+uint32_t busDeviceReadScratchpad(const busDevice_t * dev)
+{
+    return dev->scratchpad;
+}
+
+void busDeviceWriteScratchpad(busDevice_t * dev, uint32_t value)
+{
+    dev->scratchpad = value;
 }
 
 /*

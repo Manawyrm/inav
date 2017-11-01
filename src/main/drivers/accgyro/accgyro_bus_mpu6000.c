@@ -145,12 +145,12 @@ static void mpu6000AccInit(accDev_t *acc)
 
 bool mpu6000AccDetect(accDev_t *acc)
 {
-    acc->dev = busDeviceOpen(BUSTYPE_ANY, DEVHW_MPU6000, OWNER_MPU);
+    acc->dev = busDeviceOpen(BUSTYPE_ANY, DEVHW_MPU6000);
     if (acc->dev == NULL) {
         return false;
     }
 
-    if (acc->dev->scratchpad != 0xFFFF6000) {
+    if (busDeviceReadScratchpad(acc->dev) != 0xFFFF6000) {
         return false;
     }
 
@@ -167,14 +167,12 @@ static bool mpu6000DeviceDetect(busDevice_t * dev)
 
     busSetSpeed(dev, BUS_SPEED_INITIALIZATION);
 
-    debug[0] = 0x100;
     busWrite(dev, MPU_RA_PWR_MGMT_1, BIT_H_RESET);
     
     do {
         delay(150);
 
         busRead(dev, MPU_RA_WHO_AM_I, &in);
-        debug[1] = in;
         if (in == MPU6000_WHO_AM_I_CONST) {
             break;
         }
@@ -217,7 +215,8 @@ bool mpu6000GyroDetect(gyroDev_t *gyro)
         return false;
     }
 
-    gyro->dev->scratchpad = 0xFFFF6000;     // Magic number for ACC detection to indicate that we have detected gyro
+    busDeviceWriteScratchpad(gyro->dev, 0xFFFF6000);    // Magic number for ACC detection to indicate that we have detected MPU6000 gyro
+
     gyro->mpuConfiguration.gyroReadXRegister = MPU_RA_GYRO_XOUT_H;
     gyro->initFn = mpu6000AccAndGyroInit;
     gyro->readFn = mpuGyroRead;

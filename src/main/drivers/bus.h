@@ -64,6 +64,7 @@ typedef enum {
 } devHardwareType_e;
 
 typedef struct busDeviceDescriptor_s {
+    void *              devicePtr;
     busType_e           busType;
     devHardwareType_e   devHwType;
     union {
@@ -80,8 +81,8 @@ typedef struct busDeviceDescriptor_s {
 } busDeviceDescriptor_t;
 
 typedef struct busDevice_s {
-    const busDeviceDescriptor_t * descriptor;
-    busType_e busType;              // Bus type 
+    const busDeviceDescriptor_t * descriptorPtr;
+    busType_e busType;
     union {
         struct {
             SPIDevice spiBus;       // SPI bus ID
@@ -109,7 +110,9 @@ extern const busDeviceDescriptor_t __busdev_registry_end[];
 
 #define BUSDEV_REGISTER_SPI(_name, _devHw, _spiBus, _csnPin, _irqPin)               \
     extern const busDeviceDescriptor_t _name ## _registry;                          \
+    static busDevice_t _name ## _memory;                                            \
     const busDeviceDescriptor_t _name ## _registry BUSDEV_REGISTER_ATTRIBUTES = {   \
+        .devicePtr = (void *) & _name ## _memory,                                   \
         .busType = BUSTYPE_SPI,                                                     \
         .devHwType = _devHw,                                                        \
         .busdev.spi = {                                                             \
@@ -138,8 +141,11 @@ void busInit(void);
 
 /* Finds a device in registry. First matching device is returned. Also performs the low-level initialization of the hardware (CS line for SPI) */
 busDevice_t * busDeviceInit(busType_e bus, devHardwareType_e hw, resourceOwner_e owner);
-busDevice_t * busDeviceOpen(busType_e bus, devHardwareType_e hw, resourceOwner_e owner);
+busDevice_t * busDeviceOpen(busType_e bus, devHardwareType_e hw);
 void busDeviceDeInit(busDevice_t * dev);
+
+uint32_t busDeviceReadScratchpad(const busDevice_t * dev);
+void busDeviceWriteScratchpad(busDevice_t * dev, uint32_t value);
 
 void busSetSpeed(const busDevice_t * dev, busSpeed_e speed);
 bool busWriteBuf(const busDevice_t * busdev, uint8_t reg, uint8_t * data, uint8_t length);
