@@ -21,6 +21,9 @@
 #include "drivers/io.h"
 #include "drivers/pwm_mapping.h"
 #include "drivers/timer.h"
+#include "drivers/bus.h"
+
+BUSDEV_REGISTER_I2C(busdev_mpu6000_spi, DEVHW_MPU6050,      BUS_I2C1,    0x68,    MPU_INT_EXTI);
 
 const timerHardware_t timerHardware[USABLE_TIMER_CHANNEL_COUNT] = {
     { TIM16, IO_TAG(PA6),  TIM_Channel_1, 1, IOCFG_AF_PP, GPIO_AF_1,    TIM_USE_MC_MOTOR |                    TIM_USE_FW_MOTOR }, // PWM1

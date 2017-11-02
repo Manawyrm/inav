@@ -1,18 +1,18 @@
 /*
- * This file is part of Cleanflight.
+ * This file is part of INAV.
  *
- * Cleanflight is free software: you can redistribute it and/or modify
+ * INAV is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
  *
- * Cleanflight is distributed in the hope that it will be useful,
+ * INAV is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with Cleanflight.  If not, see <http://www.gnu.org/licenses/>.
+ * along with INAV.  If not, see <http://www.gnu.org/licenses/>.
  */
 
 /*
@@ -75,61 +75,59 @@ static bool mpu6000InitDone = false;
 
 static void mpu6000AccAndGyroInit(gyroDev_t *gyro)
 {
+    busDevice_t * dev = gyro->dev;
     mpuIntExtiInit(gyro);
 
-    spiSetSpeed(MPU6000_SPI_INSTANCE, SPI_CLOCK_INITIALIZATON);
+    busSetSpeed(dev, BUS_SPEED_INITIALIZATION);
 
     if (!mpu6000InitDone) {
         // Device Reset
-        busWrite(gyro->dev, MPU_RA_PWR_MGMT_1, BIT_H_RESET);
+        busWrite(dev, MPU_RA_PWR_MGMT_1, BIT_H_RESET);
         delay(150);
 
-        busWrite(gyro->dev, MPU_RA_SIGNAL_PATH_RESET, BIT_GYRO | BIT_ACC | BIT_TEMP);
+        busWrite(dev, MPU_RA_SIGNAL_PATH_RESET, BIT_GYRO | BIT_ACC | BIT_TEMP);
         delay(150);
 
         // Clock Source PPL with Z axis gyro reference
-        busWrite(gyro->dev, MPU_RA_PWR_MGMT_1, MPU_CLK_SEL_PLLGYROZ);
+        busWrite(dev, MPU_RA_PWR_MGMT_1, MPU_CLK_SEL_PLLGYROZ);
         delayMicroseconds(15);
 
         // Disable Primary I2C Interface
-        busWrite(gyro->dev, MPU_RA_USER_CTRL, BIT_I2C_IF_DIS);
+        busWrite(dev, MPU_RA_USER_CTRL, BIT_I2C_IF_DIS);
         delayMicroseconds(15);
 
-        busWrite(gyro->dev, MPU_RA_PWR_MGMT_2, 0x00);
+        busWrite(dev, MPU_RA_PWR_MGMT_2, 0x00);
         delayMicroseconds(15);
 
         // Accel Sample Rate 1kHz
         // Gyroscope Output Rate =  1kHz when the DLPF is enabled
-        busWrite(gyro->dev, MPU_RA_SMPLRT_DIV, gyroMPU6xxxGetDividerDrops(gyro));
+        busWrite(dev, MPU_RA_SMPLRT_DIV, gyroMPU6xxxGetDividerDrops(gyro));
         delayMicroseconds(15);
 
         // Gyro +/- 1000 DPS Full Scale
-        busWrite(gyro->dev, MPU_RA_GYRO_CONFIG, INV_FSR_2000DPS << 3);
+        busWrite(dev, MPU_RA_GYRO_CONFIG, INV_FSR_2000DPS << 3);
         delayMicroseconds(15);
 
         // Accel +/- 8 G Full Scale
-        busWrite(gyro->dev, MPU_RA_ACCEL_CONFIG, INV_FSR_8G << 3);
+        busWrite(dev, MPU_RA_ACCEL_CONFIG, INV_FSR_8G << 3);
         delayMicroseconds(15);
 
-        busWrite(gyro->dev, MPU_RA_INT_PIN_CFG, 0 << 7 | 0 << 6 | 0 << 5 | 1 << 4 | 0 << 3 | 0 << 2 | 0 << 1 | 0 << 0);  // INT_ANYRD_2CLEAR
+        busWrite(dev, MPU_RA_INT_PIN_CFG, 0 << 7 | 0 << 6 | 0 << 5 | 1 << 4 | 0 << 3 | 0 << 2 | 0 << 1 | 0 << 0);  // INT_ANYRD_2CLEAR
         delayMicroseconds(15);
 
 #ifdef USE_MPU_DATA_READY_SIGNAL
-        busWrite(gyro->dev, MPU_RA_INT_ENABLE, MPU_RF_DATA_RDY_EN);
+        busWrite(dev, MPU_RA_INT_ENABLE, MPU_RF_DATA_RDY_EN);
         delayMicroseconds(15);
 #endif
-
-        spiSetSpeed(MPU6000_SPI_INSTANCE, SPI_CLOCK_FAST);
-        delayMicroseconds(1);
 
         mpu6000InitDone = true;
     }
 
     // Accel and Gyro DLPF Setting
-    busWrite(gyro->dev, MPU_RA_CONFIG, gyro->lpf);
+    busWrite(dev, MPU_RA_CONFIG, gyro->lpf);
     delayMicroseconds(1);
 
-    spiSetSpeed(MPU6000_SPI_INSTANCE, SPI_CLOCK_FAST);  // 18 MHz SPI clock
+    busSetSpeed(dev, BUS_SPEED_FAST);
 
     mpuGyroRead(gyro);
 
@@ -217,7 +215,7 @@ bool mpu6000GyroDetect(gyroDev_t *gyro)
 
     busDeviceWriteScratchpad(gyro->dev, 0xFFFF6000);    // Magic number for ACC detection to indicate that we have detected MPU6000 gyro
 
-    gyro->mpuConfiguration.gyroReadXRegister = MPU_RA_GYRO_XOUT_H;
+    gyro->devConfig.mpu.gyroReadXRegister = MPU_RA_GYRO_XOUT_H;
     gyro->initFn = mpu6000AccAndGyroInit;
     gyro->readFn = mpuGyroRead;
     gyro->intStatusFn = mpuCheckDataReady;

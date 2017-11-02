@@ -58,7 +58,11 @@ typedef struct gyroDev_s {
     uint8_t mpuDividerDrops;
     volatile bool dataReady;
     sensor_align_e gyroAlign;
-    mpuConfiguration_t mpuConfiguration;
+
+    // Device-specific configuration (set up by driver)
+    union {
+        mpuConfiguration_t mpu;
+    } devConfig;
 } gyroDev_t;
 
 typedef struct accDev_s {

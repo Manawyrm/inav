@@ -39,6 +39,10 @@
 #define BUS_SPI3    SPIDEV_3
 #define BUS_SPI4    SPIDEV_4
 
+#define BUS_I2C1    I2CDEV_1
+#define BUS_I2C2    I2CDEV_2
+#define BUS_I2C3    I2CDEV_3
+
 typedef enum {
     BUS_SPEED_INITIALIZATION = 0,
     BUS_SPEED_SLOW           = 1,
@@ -59,8 +63,10 @@ typedef enum {
 typedef enum {
     DEVHW_NONE = 0,
     DEVHW_MPU6000,
+    DEVHW_MPU6050,
     DEVHW_MAX7456,
-    DEVHW_BMP280
+    DEVHW_BMP280,
+    DEVHW_MS5611,
 } devHardwareType_e;
 
 typedef struct busDeviceDescriptor_s {
@@ -118,6 +124,21 @@ extern const busDeviceDescriptor_t __busdev_registry_end[];
         .busdev.spi = {                                                             \
             .spiBus = _spiBus,                                                      \
             .csnPin = IO_TAG(_csnPin)                                               \
+        },                                                                          \
+        .irqPin = IO_TAG(_irqPin)                                                   \
+    };                                                                              \
+    /**/
+
+#define BUSDEV_REGISTER_I2C(_name, _devHw, _i2cBus, _devAddr, _irqPin)              \
+    extern const busDeviceDescriptor_t _name ## _registry;                          \
+    static busDevice_t _name ## _memory;                                            \
+    const busDeviceDescriptor_t _name ## _registry BUSDEV_REGISTER_ATTRIBUTES = {   \
+        .devicePtr = (void *) & _name ## _memory,                                   \
+        .busType = BUSTYPE_I2C,                                                     \
+        .devHwType = _devHw,                                                        \
+        .busdev.i2c = {                                                             \
+            .i2cBus = _i2cBus,                                                      \
+            .address = _devAddr                                                     \
         },                                                                          \
         .irqPin = IO_TAG(_irqPin)                                                   \
     };                                                                              \

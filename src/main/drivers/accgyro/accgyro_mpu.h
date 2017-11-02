@@ -136,7 +136,7 @@
 // RF = Register Flag
 #define MPU_RF_DATA_RDY_EN (1 << 0)
 
-typedef struct mpuConfiguration_s {
+typedef struct mpuConfiguration_s {    
     uint8_t gyroReadXRegister; // Y and Z must registers follow this, 2 words each
 } mpuConfiguration_t;
 
